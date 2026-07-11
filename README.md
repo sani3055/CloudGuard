@@ -175,6 +175,8 @@ CloudGuard
 ## Screenshots
 <img width="1857" height="832" alt="image" src="https://github.com/user-attachments/assets/2d2c9ec7-5ea2-4a07-b5c6-94a297cc0ee9" />
 <img width="1892" height="898" alt="image" src="https://github.com/user-attachments/assets/c529795e-2fe5-43e4-8eb7-c1072351a005" />
+<img width="1881" height="652" alt="image" src="https://github.com/user-attachments/assets/8c358c20-17d6-418a-97c4-ba9aa0f7c220" />
+<img width="1603" height="867" alt="image" src="https://github.com/user-attachments/assets/dce90e62-1456-4fbd-811e-650503d31a27" />
 
 
 Screenshots will be added after deployment.
