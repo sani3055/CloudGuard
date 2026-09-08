@@ -64,7 +64,7 @@ dist/
 # ==========================
 # ML Artifacts
 # ==========================
-ml/model.pkl
+# ml/model.pkl (tracked: 756KB pre-trained model for out-of-the-box demo)
 
 # ==========================
 # Large Datasets
