@@ -101,6 +101,19 @@ SCENARIOS = {
             "requestParameters": {"userName": None},
         },
     },
+    "Normal Event — ListBuckets (IAMUser, business hours, us-east-1)": {
+        "description": "IAM user lists S3 buckets during business hours from a known region — model should score this as NORMAL and skip all downstream anomaly stages.",
+        "event": {
+            "eventName":  "ListBuckets",
+            "eventTime":  "2026-09-05T10:00:00Z",
+            "awsRegion":  "us-east-1",
+            "userIdentity": {
+                "type": "IAMUser",
+                "arn":  "arn:aws:iam::123456789012:user/developer",
+            },
+            "requestParameters": {},
+        },
+    },
     "Custom Event (edit below)": {
         "description": "Write your own CloudTrail event JSON in the editor.",
         "event": {
@@ -116,7 +129,7 @@ SCENARIOS = {
 }
 
 # ── Scenario Selector ─────────────────────────────────────────────────────────
-st.markdown('<div class="cg-section-header">Select Attack Scenario</div>', unsafe_allow_html=True)
+st.markdown('<div class="cg-section-header">Select Scenario</div>', unsafe_allow_html=True)
 scenario_name = st.selectbox("Scenario", list(SCENARIOS.keys()), label_visibility="collapsed")
 scenario = SCENARIOS[scenario_name]
 
