@@ -77,8 +77,11 @@ def load_data() -> pd.DataFrame:
 @st.cache_data(ttl=30)
 def load_remediation_queue() -> pd.DataFrame:
     """
-    Load ThreatEvents items that went through the full anomaly pipeline
-    (remediation_status present and not NOT_REQUIRED).
+    Load ThreatEvents items that went through the full ML anomaly pipeline.
+    Filters out:
+      - Items where remediation_status is missing/NOT_REQUIRED (normal events)
+      - Stale pre-ML items that lack the threat_label field (old rule-based records)
+    Fills NaN in all columns the Remediation page uses so it never crashes.
     Returns an empty DataFrame on error or when queue is empty.
     """
     try:
@@ -93,22 +96,62 @@ def load_remediation_queue() -> pd.DataFrame:
 
     df = pd.DataFrame(items)
 
+    # ── Drop items with no remediation_status column at all
     if "remediation_status" not in df.columns:
         return pd.DataFrame()
 
+    # ── Drop normal events and stale items with no status value
+    df = df[df["remediation_status"].notna()]
     df = df[~df["remediation_status"].isin(["NOT_REQUIRED", ""])]
 
     if df.empty:
         return pd.DataFrame()
 
+    # ── Drop stale pre-ML items that have no threat_label (old rule-based records)
+    if "threat_label" in df.columns:
+        df = df[df["threat_label"].notna()]
+    else:
+        # All items are old-format — nothing valid to show
+        return pd.DataFrame()
+
+    if df.empty:
+        return pd.DataFrame()
+
+    # ── Normalise boolean columns
     for col in ("enforcement_eligible", "isAnomaly"):
         if col in df.columns:
             df[col] = df[col].astype(str).str.lower().isin(["true", "1"])
+        else:
+            df[col] = False
 
+    # ── Parse timestamp; keep NaT rows (just sort last)
     if "timestamp" in df.columns:
         df["timestamp"] = pd.to_datetime(
             df["timestamp"], format="ISO8601", errors="coerce"
         )
+
+    # ── Fill NaN in every text column the UI touches
+    str_defaults = {
+        "eventId":           "",
+        "eventName":         "Unknown",
+        "awsRegion":         "N/A",
+        "severity":          "Unknown",
+        "threat_label":      "Unknown",
+        "mitre_technique":   "N/A",
+        "confidence_level":  "Unknown",
+        "policy_name":       "N/A",
+        "validation_status": "N/A",
+        "remediation_status":"SIMULATED",
+        "threat_rationale":  "",
+        "policy_json":       "",
+        "validation_findings": "",
+        "policy_target_arn": "N/A",
+        "threat_category":   "",
+    }
+    for col, default in str_defaults.items():
+        if col in df.columns:
+            df[col] = df[col].fillna(default).astype(str)
+        # columns absent from df are handled by .get() in the UI
 
     return df.reset_index(drop=True)
 

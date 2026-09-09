@@ -114,7 +114,7 @@ else:
     cat = row.get("threat_label", row.get("threat_category", ""))
     return f"{name} [{cat}] — {eid}"
   item_labels  = df.apply(_item_label, axis=1).tolist()
-  sSelected_label = st.selectbox("Select item to rReview", item_labels, key="rem_selector")
+  sSelected_label = st.selectbox("Select item to Review", item_labels, key="rem_selector")
   sel_idx = item_labels.index(sSelected_label)
   sel_row = df.iloc[sel_idx]
   # ── Detail Panel ──────────────────────────────────────────────────────────
@@ -140,7 +140,9 @@ else:
       with st.expander("📝 Threat Rationale"):
         st.write(sel_row.get("threat_rationale"))
     # ── Side-by-side Policy Diff ──────────────────────────────────────────
-    if sel_row.get("policy_json"):
+    _pjson = sel_row.get("policy_json", "") or ""
+    _pjson = str(_pjson).strip()
+    if _pjson and _pjson not in ("nan", "None", "{}"):
       st.markdown("**IAM Policy — Before vs. After Remediation**")
       diff_l, diff_r = st.columns(2)
       with diff_l:
@@ -158,9 +160,9 @@ else:
       with diff_r:
         st.markdown("*After: Generated least-privilege Deny policy*")
         try:
-          pretty = json.dumps(json.loads(sel_row["policy_json"]), indent=2)
+          pretty = json.dumps(json.loads(_pjson), indent=2)
         except Exception:
-          pretty = str(sel_row["policy_json"])
+          pretty = _pjson
         st.code(pretty, language="json")
     # ── Validation Badge Panel ────────────────────────────────────────────
     val_s = str(sel_row.get("validation_status", ""))
@@ -173,15 +175,18 @@ else:
         "ERROR":      ("critical","ERROR — Malformed policy, never enforce"),
       }
       v_variant, v_label = VAL_VARIANT.get(val_s, ("info", val_s))
-      st.html(
+      st.markdown(
         f'<div class="cg-callout cg-callout-{v_variant}"><strong>Access Analyzer: {v_label}</strong></div>',
+        unsafe_allow_html=True,
       )
-    if sel_row.get("validation_findings"):
+    _vf = sel_row.get("validation_findings", "") or ""
+    _vf = str(_vf).strip()
+    if _vf and _vf not in ("nan", "None", "[]", ""):
       with st.expander("Access Analyzer Findings"):
         try:
-          st.json(json.loads(sel_row["validation_findings"]))
+          st.json(json.loads(_vf))
         except Exception:
-          st.write(sel_row.get("validation_findings"))
+          st.write(_vf)
   st.divider()
   # ── Warnings before action ────────────────────────────────────────────────
   if not sel_row.get("enforcement_eligible"):
