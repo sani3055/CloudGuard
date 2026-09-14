@@ -85,9 +85,10 @@ SUGGESTION_TYPES: frozenset[str] = frozenset(["SUGGESTION"])
 import pathlib
 
 _BASE = pathlib.Path(__file__).parent
+_ml_dir = (_BASE / "ml") if (_BASE / "ml").exists() else (_BASE.parent / "ml")
 
-MODEL_PATH:   pathlib.Path = _BASE.parent / "ml" / "model.pkl"
-ENCODER_PATH: pathlib.Path = _BASE.parent / "ml" / "encoder.pkl"
+MODEL_PATH:   pathlib.Path = _ml_dir / "model.pkl"
+ENCODER_PATH: pathlib.Path = _ml_dir / "encoder.pkl"
 
 # ---------------------------------------------------------------------------
 # Logging / Audit
