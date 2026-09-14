@@ -16,7 +16,8 @@ def get_table():
 
 def generate_demo_data() -> pd.DataFrame:
     """Generate realistic SOC simulation data to populate the dashboard when live data is sparse."""
-    now = datetime.now(datetime.UTC)
+    from datetime import timezone
+    now = datetime.now(timezone.utc)
     demo_events = []
     
     scenarios = [

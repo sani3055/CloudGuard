@@ -5,7 +5,7 @@ from utils import inject_css, render_metric_card, load_data
 
 inject_css()
 
-st.markdown('<div class="soc-header">ML Intelligence & Model Monitoring</div>', unsafe_allow_html=True)
+st.markdown('<div class="soc-header">Machine Learning Pipeline & Metrics</div>', unsafe_allow_html=True)
 
 info = pr.get_model_info()
 
@@ -45,7 +45,7 @@ with m1:
     - Features: `eventName`, `hour`, `userIdentitytype`, `awsRegion`, `isRoot`.
     - SHAP `TreeExplainer` utilized for feature attribution and rationale generation.
     - **80/20 Split:** 80% held-out test split for robust validation.
-    - Precision/Recall/F1 metrics are derived EXCLUSIVELY from externally labeled security scenarios (MITRE ATT&CK), NEVER from model self-predictions.
+    - Precision/Recall/F1 metrics are derived EXCLUSIVELY from externally labeled operational scenarios (MITRE ATT&CK), NEVER from model self-predictions.
     """)
     st.write(f"**Observed Live Anomaly Rate:** {anom_rate}")
 

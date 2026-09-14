@@ -6,7 +6,7 @@ import boto3
 
 inject_css()
 
-st.markdown('<div class="soc-header">Security Operations Overview</div>', unsafe_allow_html=True)
+st.markdown('<div class="soc-header">Cloud Infrastructure & ML Overview</div>', unsafe_allow_html=True)
 
 # ── Load Data ──
 df = load_data()
@@ -56,7 +56,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 if df.empty:
-    st.info("No security events detected yet.")
+    st.info("No cloud events detected yet.")
     st.stop()
 
 # Show DEMO mode warning if applicable
@@ -78,7 +78,7 @@ with m2:
 with m3:
     st.markdown(render_metric_card("High/Critical Risk", str(high_risk), "orange" if high_risk > 0 else "gray"), unsafe_allow_html=True)
 with m4:
-    st.markdown(render_metric_card("Pending Remediation", str(pending_remediation), "orange" if pending_remediation > 0 else "gray"), unsafe_allow_html=True)
+    st.markdown(render_metric_card("Pending ML Review", str(pending_remediation), "orange" if pending_remediation > 0 else "gray"), unsafe_allow_html=True)
 
 # ── Detection Timeline ──
 st.markdown('<div class="soc-header">Detection Timeline</div>', unsafe_allow_html=True)

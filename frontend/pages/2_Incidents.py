@@ -5,15 +5,15 @@ from utils import inject_css, load_data, render_badge, render_risk_gauge, render
 
 inject_css()
 
-st.markdown('<div class="soc-header">Incident Response Queue</div>', unsafe_allow_html=True)
+st.markdown('<div class="soc-header">Anomaly Triage Queue</div>', unsafe_allow_html=True)
 
 df = load_data()
 if df.empty:
-    st.info("No security incidents to display.")
+    st.info("No anomalous events to display.")
     st.stop()
 
 # ── Filters ──
-with st.expander("🔍 Filter Incidents", expanded=False):
+with st.expander("🔍 Filter Anomalies", expanded=False):
     f1, f2, f3, f4 = st.columns(4)
     with f1:
         sev_filter = st.multiselect("Severity", options=df['severity'].unique())
@@ -40,7 +40,7 @@ elif data_filter == "Demo/Simulation":
     filtered_df = filtered_df[filtered_df['is_demo'] == True]
 
 if filtered_df.empty:
-    st.success("No incidents match the current filters.")
+    st.success("No anomalies match the current filters.")
     st.stop()
 
 # ── Analyst Table ──
@@ -62,7 +62,7 @@ view_df = view_df.drop(columns=['is_demo'])
 st.dataframe(view_df, use_container_width=True, hide_index=True)
 
 st.markdown("---")
-st.markdown('<div class="soc-header">Incident Investigation Panel</div>', unsafe_allow_html=True)
+st.markdown('<div class="soc-header">Event Investigation Panel</div>', unsafe_allow_html=True)
 
 # ── Investigation Panel ──
 incident = filtered_df[filtered_df['eventId'] == selected_event_id].iloc[0]
@@ -81,8 +81,8 @@ with c1:
     st.markdown("</div>", unsafe_allow_html=True)
     
     st.markdown('<div class="inv-panel">', unsafe_allow_html=True)
-    st.markdown("**ML Intelligence & Security Context**")
-    st.markdown(render_investigation_row("Threat Category", incident.get('threat_category', 'Unknown')), unsafe_allow_html=True)
+    st.markdown("**ML Intelligence & Operational Context**")
+    st.markdown(render_investigation_row("Anomaly Category", incident.get('threat_category', 'Unknown')), unsafe_allow_html=True)
     st.markdown(render_investigation_row("MITRE Tactic/Technique", f"{incident.get('mitre_name', 'N/A')} ({incident.get('mitre_technique', 'N/A')})"), unsafe_allow_html=True)
     st.markdown(render_investigation_row("Confidence Level", incident.get('confidence_level', 'Unknown')), unsafe_allow_html=True)
     st.markdown(f"<div style='margin-top:12px; font-size:0.85rem; color:#9ca3af;'><b>ML / SHAP Rationale:</b> {incident.get('threat_rationale', 'No rationale provided.')}</div>", unsafe_allow_html=True)
@@ -102,7 +102,7 @@ with c2:
     st.markdown(f"**Remediation State:** {render_badge(status, status_badge_color)}", unsafe_allow_html=True)
 
 st.markdown("---")
-st.markdown('<div class="soc-header">Human Approval Workflow</div>', unsafe_allow_html=True)
+st.markdown('<div class="soc-header">ML Anomaly Review Workflow</div>', unsafe_allow_html=True)
 
 # Policy details
 if status != "NOT_REQUIRED":
@@ -116,7 +116,7 @@ if status != "NOT_REQUIRED":
             st.code(incident.get("policy_json", ""), language="json")
 
 # Action Buttons
-st.markdown("### Analyst Actions")
+st.markdown("### Cloud Ops Actions")
 
 if incident['is_demo']:
     st.info("ℹ️ This is a DEMO event. Remediation actions will update the UI but will not execute on live AWS resources.")
@@ -136,13 +136,13 @@ if status == "PENDING_APPROVAL":
         if st.button("❌ REJECT (FALSE POSITIVE)", use_container_width=True):
             success = update_remediation_status(incident['eventId'], "ROLLED_BACK")
             if success:
-                st.success("Remediation Rejected.")
+                st.success("Anomaly Rejected.")
                 st.rerun()
 elif status == "APPROVED" or status == "ENFORCED":
-    st.success(f"This incident has already been {status}.")
+    st.success(f"This anomaly has already been {status}.")
 elif status == "SIMULATED":
-    st.info("This incident was SIMULATED. Enforcement is disabled for this record.")
+    st.info("This anomaly was SIMULATED. Enforcement is disabled for this record.")
 elif status == "NOT_REQUIRED":
-    st.info("No remediation was generated for this incident.")
+    st.info("No policy action was generated for this anomaly.")
 else:
     st.warning(f"Current Status: {status}")

@@ -2,12 +2,12 @@ import streamlit as st
 import boto3
 from botocore.exceptions import ClientError
 from utils import inject_css, render_badge
-from datetime import datetime
+from datetime import datetime, timezone
 
 inject_css()
 
 st.markdown('<div class="soc-header">Infrastructure Health & Diagnostics</div>', unsafe_allow_html=True)
-st.write(f"Last Diagnostics Run: `{datetime.now(datetime.UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}`")
+st.write(f"Last Diagnostics Run: `{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}`")
 st.markdown("---")
 
 def check_dynamodb():

@@ -14,8 +14,8 @@ if str(_FRONTEND_DIR) not in sys.path:
 
 # Ensure page config is the very first Streamlit command
 st.set_page_config(
-    page_title="CloudSecure SOC",
-    page_icon="🛡️",
+    page_title="CloudSecure ML Pipeline",
+    page_icon="☁️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -26,12 +26,12 @@ inject_css()
 
 # Configure Navigation Pages
 pages = {
-    "Security Operations": [
+    "Cloud Analytics": [
         st.Page("pages/1_Overview.py", title="Overview"),
-        st.Page("pages/2_Incidents.py", title="Incidents"),
-        st.Page("pages/5_Analytics.py", title="Analytics"),
+        st.Page("pages/2_Incidents.py", title="Anomaly Triage"),
+        st.Page("pages/5_Analytics.py", title="Data Analytics"),
     ],
-    "Intelligence & Health": [
+    "ML & Infrastructure": [
         st.Page("pages/3_ML_Intelligence.py", title="ML Intelligence"),
         st.Page("pages/4_System_Health.py", title="System Health"),
     ]

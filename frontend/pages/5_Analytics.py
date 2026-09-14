@@ -5,11 +5,11 @@ from utils import inject_css, load_data
 
 inject_css()
 
-st.markdown('<div class="soc-header">Advanced Security Analytics</div>', unsafe_allow_html=True)
+st.markdown('<div class="soc-header">Cloud & ML Data Analytics</div>', unsafe_allow_html=True)
 
 df = load_data()
 if df.empty:
-    st.info("No security events available for analysis.")
+    st.info("No cloud events available for analysis.")
     st.stop()
 
 # ── Global Filters ──
