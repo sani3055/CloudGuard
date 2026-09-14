@@ -45,10 +45,10 @@ logger = logging.getLogger("cloudguard.handler")
 from config import SIMULATION_MODE, ANOMALY_SCORE_THRESHOLD  # noqa: E402
 from ml_inference import score_event                          # noqa: E402
 from xai_explainer import explain                            # noqa: E402
-from threat_classifier import classify_threat                # noqa: E402
-from iam_generator import generate_policy                    # noqa: E402
-from policy_validator import validate_policy                  # noqa: E402
-from remediation import apply_remediation                    # noqa: E402
+from threat_classifier import classify_threat, compute_risk_score_normal  # noqa: E402
+from iam_generator import generate_policy                                 # noqa: E402
+from policy_validator import validate_policy                               # noqa: E402
+from remediation import apply_remediation                                  # noqa: E402
 
 # Feature names must match the order expected by explain()
 import sys, pathlib
@@ -143,13 +143,14 @@ def _run_pipeline(event: dict, event_id: str) -> dict[str, Any]:
 
     # ── Stage 3: Threat Classification ───────────────────────────────────
     logger.info("[3/6] Threat classification — eventId=%s", event_id)
-    threat_result = classify_threat(xai_result, features)
+    threat_result = classify_threat(xai_result, features, anomaly_score=anomaly_score)
 
     logger.info(
-        "[3/6] Done | category=%s severity=%s enforce_eligible=%s",
+        "[3/6] Done | category=%s severity=%s enforce_eligible=%s risk_score=%d",
         threat_result["threat_category"],
         threat_result["severity"],
         threat_result["enforcement_eligible"],
+        threat_result["risk_score"],
     )
 
     # ── Stage 4: IAM Policy Generation ───────────────────────────────────
@@ -196,17 +197,18 @@ def _run_pipeline(event: dict, event_id: str) -> dict[str, Any]:
     )
 
     return {
-        "eventId":              event_id,
-        "is_anomaly":           True,
-        "anomaly_score":        anomaly_score,
-        "top_xai_feature":      xai_result["top_feature"],
-        "attribution_confidence": xai_result["attribution_confidence"],
-        "threat_category":      threat_result["threat_category"],
-        "severity":             threat_result["severity"],
-        "policy_name":          policy_result["policy_name"],
-        "validation_status":    validation_result["validation_status"],
-        "remediation_status":   remediation_result["remediation_status"],
-        "pipeline":             "full",
+        "eventId":                event_id,
+        "is_anomaly":             True,
+        "anomaly_score":          anomaly_score,
+        "risk_score":             threat_result["risk_score"],
+        "top_xai_feature":        xai_result["top_feature"],
+        "attribution_confidence":  xai_result["attribution_confidence"],
+        "threat_category":        threat_result["threat_category"],
+        "severity":               threat_result["severity"],
+        "policy_name":            policy_result["policy_name"],
+        "validation_status":      validation_result["validation_status"],
+        "remediation_status":     remediation_result["remediation_status"],
+        "pipeline":               "full",
     }
 
 
@@ -231,7 +233,7 @@ def _store_normal_event(event: dict, score_result: dict, event_id: str) -> None:
         "sourceIP":     event_detail.get("sourceIPAddress", "Unknown"),
         "isAnomaly":    False,
         "anomalyScore": Decimal(str(round(score_result["anomaly_score"], 6))),
-        "riskScore":    0,
+        "riskScore":    compute_risk_score_normal(score_result["anomaly_score"]),
         "severity":     "Low",
         "remediation_status": "NOT_REQUIRED",
     }

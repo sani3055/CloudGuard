@@ -9,6 +9,12 @@ Design principles:
   - Each rule requires both XAI evidence AND event-level context to fire
   - Attribution confidence < MIN_ATTRIBUTION_CONFIDENCE always yields "Uncertain"
   - All categories include a MITRE ATT&CK technique reference for research validity
+
+Risk Score Formula (for anomalies):
+  base_score  = clamp((-anomaly_score + 0.05) * 300, 0, 60)
+  bonus       = severity_bonus * clamp(attribution_confidence, 0, 1)
+  risk_score  = clamp(base_score + bonus, 0, 100)
+  severity_bonus: Critical=40, High=25, Medium=10, Low=0
 """
 
 from __future__ import annotations
@@ -78,18 +84,81 @@ THREAT_CATEGORIES = {
 BUSINESS_HOURS_START = 6   # 06:00 UTC
 BUSINESS_HOURS_END   = 22  # 22:00 UTC
 
+# Severity → category bonus points (added on top of IF base score)
+_SEVERITY_BONUS: dict[str, int] = {
+    "Critical": 40,
+    "High":     25,
+    "Medium":   10,
+    "Low":       0,
+    "Unknown":   5,
+}
+
+
+# ---------------------------------------------------------------------------
+# Risk Score — public API
+# ---------------------------------------------------------------------------
+
+def compute_risk_score(
+    anomaly_score: float,
+    severity: str,
+    attribution_confidence: float,
+) -> int:
+    """
+    Convert IsolationForest decision_function output to a 0–100 integer risk score.
+
+    Formula
+    -------
+    base_score  = clamp((-anomaly_score + 0.05) * 300, 0, 60)
+                  Practical IF range: [-0.20, +0.25]. Maps [-0.20, 0.0] → [0, 60].
+    bonus       = severity_bonus * clamp(attribution_confidence, 0, 1)
+    risk_score  = clamp(base_score + bonus, 0, 100)
+
+    Interview rationale
+    -------------------
+    - The base score captures raw anomaly depth (how deep in the isolation tree).
+    - The bonus reflects the qualitative severity assigned by the rule engine.
+    - Confidence-weighting the bonus prevents noisy SHAP attributions from
+      artificially inflating scores when the explanation is uncertain.
+
+    Typical ranges:
+      Critical, high confidence, very anomalous → 85–100
+      High, medium confidence, moderate anomaly → 45–65
+      Medium (UNCERTAIN), low confidence       → 15–30
+      Normal event                              → 0–15 (via compute_risk_score_normal)
+    """
+    base  = max(0.0, min(60.0, (-anomaly_score + 0.05) * 300.0))
+    bonus = _SEVERITY_BONUS.get(severity, 5) * max(0.0, min(1.0, attribution_confidence))
+    return max(0, min(100, int(round(base + bonus))))
+
+
+def compute_risk_score_normal(anomaly_score: float) -> int:
+    """
+    Compute a small risk score for non-anomalous events.
+
+    Normal IF scores are typically +0.05 to +0.25.
+    We map them to 0–15 so the dashboard shows a baseline risk floor.
+    """
+    risk = int(round(max(0.0, min(15.0, (-anomaly_score + 0.05) * 60.0))))
+    return max(0, risk)
+
+
+# ---------------------------------------------------------------------------
+# Main classifier
+# ---------------------------------------------------------------------------
 
 def classify_threat(
     xai_result: dict[str, Any],
     raw_features: dict[str, Any],
+    anomaly_score: float = 0.0,
 ) -> dict[str, Any]:
     """
     Classify the threat category for a detected anomaly.
 
     Parameters
     ----------
-    xai_result   : dict — output of xai_explainer.explain()
-    raw_features : dict — output of feature_contract.extract_features()
+    xai_result    : dict — output of xai_explainer.explain()
+    raw_features  : dict — output of feature_contract.extract_features()
+    anomaly_score : float — IF decision_function score (used for risk_score calc)
 
     Returns
     -------
@@ -103,6 +172,7 @@ def classify_threat(
         confidence_level   : str  — High / Medium / Low
         rationale          : str  — why this category was chosen
         enforcement_eligible: bool — False for uncertain/root/low-confidence
+        risk_score         : int  — 0–100 composite risk score
     """
     # Uncertain gate — fires before all other rules
     if xai_result["is_uncertain"]:
@@ -114,6 +184,8 @@ def classify_threat(
                 f"is below threshold. Top anomalous feature: {xai_result['top_feature']}."
             ),
             enforcement_eligible=False,
+            anomaly_score=anomaly_score,
+            attribution_confidence=xai_result["attribution_confidence"],
         )
 
     top_feature  = xai_result["top_feature"]
@@ -136,6 +208,8 @@ def classify_threat(
                 f"userIdentitytype is the primary anomalous feature (SHAP={top_shap:.4f})."
             ),
             enforcement_eligible=False,  # Cannot attach inline policy to root
+            anomaly_score=anomaly_score,
+            attribution_confidence=confidence,
         )
 
     # ---------- Priority 2: Privilege Escalation ----------
@@ -150,6 +224,8 @@ def classify_threat(
                 f"eventName is the primary anomalous feature (SHAP={top_shap:.4f})."
             ),
             enforcement_eligible=True,
+            anomaly_score=anomaly_score,
+            attribution_confidence=confidence,
         )
 
     # ---------- Priority 3: Defense Evasion ----------
@@ -163,6 +239,8 @@ def classify_threat(
                 f"eventName is the primary anomalous feature (SHAP={top_shap:.4f})."
             ),
             enforcement_eligible=True,
+            anomaly_score=anomaly_score,
+            attribution_confidence=confidence,
         )
 
     # ---------- Priority 4: Geographic Anomaly ----------
@@ -176,6 +254,8 @@ def classify_threat(
                 f"(SHAP={top_shap:.4f})."
             ),
             enforcement_eligible=True,
+            anomaly_score=anomaly_score,
+            attribution_confidence=confidence,
         )
 
     # ---------- Priority 5: Temporal Anomaly ----------
@@ -189,6 +269,8 @@ def classify_threat(
                 f"hour is the primary anomalous feature (SHAP={top_shap:.4f})."
             ),
             enforcement_eligible=True,
+            anomaly_score=anomaly_score,
+            attribution_confidence=confidence,
         )
 
     # ---------- Priority 6: Resource Exfiltration ----------
@@ -202,6 +284,8 @@ def classify_threat(
                 f"eventName is the primary anomalous feature (SHAP={top_shap:.4f})."
             ),
             enforcement_eligible=True,
+            anomaly_score=anomaly_score,
+            attribution_confidence=confidence,
         )
 
     # ---------- Fallback: Uncertain (rules exhausted) ----------
@@ -213,6 +297,8 @@ def classify_threat(
             f"(SHAP={top_shap:.4f}), event='{event_name}', hour={hour}."
         ),
         enforcement_eligible=False,
+        anomaly_score=anomaly_score,
+        attribution_confidence=confidence,
     )
 
 
@@ -225,20 +311,28 @@ def _build_result(
     confidence_level: str,
     rationale: str,
     enforcement_eligible: bool,
+    anomaly_score: float = 0.0,
+    attribution_confidence: float = 0.0,
 ) -> dict[str, Any]:
-    meta = THREAT_CATEGORIES[category]
-    result = {
-        "threat_category":     category,
-        "label":               meta["label"],
-        "mitre_technique":     meta["mitre_technique"],
-        "mitre_name":          meta["mitre_name"],
-        "description":         meta["description"],
-        "severity":            meta["severity"],
-        "confidence_level":    confidence_level,
-        "rationale":           rationale,
+    meta     = THREAT_CATEGORIES[category]
+    severity = meta["severity"]
+    risk     = compute_risk_score(anomaly_score, severity, attribution_confidence)
+    result   = {
+        "threat_category":      category,
+        "label":                meta["label"],
+        "mitre_technique":      meta["mitre_technique"],
+        "mitre_name":           meta["mitre_name"],
+        "description":          meta["description"],
+        "severity":             severity,
+        "confidence_level":     confidence_level,
+        "rationale":            rationale,
         "enforcement_eligible": enforcement_eligible,
+        "risk_score":           risk,
     }
-    logger.info("classify_threat -> %s (conf=%s enforce=%s)", category, confidence_level, enforcement_eligible)
+    logger.info(
+        "classify_threat -> %s (conf=%s enforce=%s risk=%d)",
+        category, confidence_level, enforcement_eligible, risk,
+    )
     return result
 
 

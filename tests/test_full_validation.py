@@ -459,7 +459,8 @@ class TestPolicyValidatorLocal:
 # ============================================================
 # SECTION 8: Remediation Safety Gate (Phase 6)
 # ============================================================
-from remediation import _determine_status, _anomaly_to_risk_score
+from remediation import _determine_status
+from threat_classifier import compute_risk_score, compute_risk_score_normal
 
 class TestRemediationSafety:
     def test_simulation_mode_returns_simulated(self, monkeypatch):
@@ -495,16 +496,17 @@ class TestRemediationSafety:
         assert status == "SIMULATED"
 
     def test_risk_score_highly_anomalous(self):
-        score = _anomaly_to_risk_score(-0.10)
-        assert score > 50, f"Highly anomalous score -0.10 should map to >50, got {score}"
+        # Use the canonical risk score function (severity=Critical, high confidence)
+        score = compute_risk_score(-0.10, "Critical", 0.8)
+        assert score > 50, f"Critical event with score -0.10 should map to >50, got {score}"
 
     def test_risk_score_normal_event(self):
-        score = _anomaly_to_risk_score(0.15)
+        score = compute_risk_score_normal(0.15)
         assert score == 0, f"Normal score +0.15 should map to 0, got {score}"
 
     def test_risk_score_clamped_0_to_100(self):
-        assert 0 <= _anomaly_to_risk_score(-0.5) <= 100
-        assert 0 <= _anomaly_to_risk_score(0.5) <= 100
+        assert 0 <= compute_risk_score(-0.5, "Critical", 1.0) <= 100
+        assert 0 <= compute_risk_score(0.5, "Low", 0.0) <= 100
 
 
 # ============================================================
@@ -540,6 +542,9 @@ class TestEndToEndLocal:
         assert "threat_category" in body
         assert "validation_status" in body
         assert body["remediation_status"] == "SIMULATED"
+        # risk_score must be present and in valid range (Phase 1)
+        assert "risk_score" in body, "risk_score must be in pipeline return dict"
+        assert 0 <= body["risk_score"] <= 100
         # Verify DynamoDB put_item was called
         assert mock_table.put_item.called
 

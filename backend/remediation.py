@@ -110,7 +110,7 @@ def apply_remediation(
         # --- ML output ---
         "isAnomaly":     score_result["is_anomaly"],
         "anomalyScore":  _to_decimal(score_result["anomaly_score"]),
-        "riskScore":     _anomaly_to_risk_score(score_result["anomaly_score"]),
+        "riskScore":     threat_result.get("risk_score", 0),
         "severity":      threat_result.get("severity", "Unknown"),
 
         # --- XAI ---
@@ -281,14 +281,8 @@ def _determine_status(
     return "APPROVED_FOR_ENFORCEMENT"
 
 
-def _anomaly_to_risk_score(anomaly_score: float) -> int:
-    """
-    Convert IsolationForest decision_function score to a 0–100 risk integer.
-    Score range in practice: [-0.15, +0.25]. Negative = anomalous.
-    """
-    # Normalise: flip sign, clamp, scale to 0–100
-    risk = max(0, min(100, int((-anomaly_score + 0.05) * 400)))
-    return risk
+# _anomaly_to_risk_score removed: risk_score is now computed in threat_classifier.py
+# and passed through the pipeline as threat_result["risk_score"].
 
 
 def _send_sns_alert(item: dict) -> None:
