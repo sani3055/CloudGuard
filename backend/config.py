@@ -56,7 +56,7 @@ PROTECTED_PRINCIPALS: frozenset[str] = frozenset(
 # ---------------------------------------------------------------------------
 # DynamoDB
 # ---------------------------------------------------------------------------
-DYNAMODB_TABLE: str = os.environ.get("DYNAMODB_TABLE", "ThreatEvents")
+DYNAMODB_TABLE: str = os.environ.get("DYNAMODB_TABLE_NAME", os.environ.get("DYNAMODB_TABLE", "CloudGuard-ThreatEvents"))
 DYNAMODB_REGION: str = os.environ.get("DYNAMODB_REGION", "ap-south-1")
 
 # ---------------------------------------------------------------------------

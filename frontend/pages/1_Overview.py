@@ -6,6 +6,7 @@ import boto3
 
 inject_css()
 
+st.markdown("# ☁️ CloudSecure ML Pipeline")
 st.markdown('<div class="soc-header">Cloud Infrastructure & ML Overview</div>', unsafe_allow_html=True)
 
 # ── Load Data ──
