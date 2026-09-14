@@ -37,9 +37,8 @@ def generate_demo_data() -> pd.DataFrame:
     users = ["IAMUser (dev-john)", "AssumedRole (jenkins-ci)", "Root", "IAMUser (audit-service)"]
     ips = ["192.168.1.5", "203.0.113.42", "198.51.100.7", "52.95.245.1"]
     
-    # Generate 50 historical demo events over the last 7 days
-    for i in range(50):
-        scenario = random.choice(scenarios)
+    # Generate exactly 10 demo events over the last 7 days (one for each scenario)
+    for scenario in scenarios:
         offset = timedelta(hours=random.randint(0, 168), minutes=random.randint(0, 60))
         event_time = now - offset
         
@@ -49,7 +48,7 @@ def generate_demo_data() -> pd.DataFrame:
             
         demo_events.append({
             "eventId": f"DEMO-{uuid.uuid4().hex[:8]}",
-            "timestamp": event_time.isoformat() + "Z",
+            "timestamp": event_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "eventName": scenario["eventName"],
             "awsRegion": random.choice(regions),
             "userIdentitytype": random.choice(users),
@@ -85,12 +84,11 @@ def load_data(include_demo: bool = True) -> pd.DataFrame:
     df_live = pd.DataFrame(items)
     if not df_live.empty:
         df_live['is_demo'] = False
-    
-    df_demo = pd.DataFrame()
-    if include_demo:
-        df_demo = generate_demo_data()
-        
-    df = pd.concat([df_live, df_demo], ignore_index=True) if not df_live.empty else df_demo
+        df = df_live
+    else:
+        df = pd.DataFrame()
+        if include_demo:
+            df = generate_demo_data()
 
     if df.empty:
         return df
@@ -161,175 +159,49 @@ def update_remediation_status(event_id: str, new_status: str) -> bool:
 # CSS Injection
 # ---------------------------------------------------------------------------
 def inject_css() -> None:
-    st.markdown(
-        """
-<style>
-/* ── Global Typography & Layout ────────────────────────── */
-html, body, [class*="st-"] {
-    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif !important;
-}
-.stApp {
-    background-color: #0b0f19;
-}
+    from pathlib import Path
+    css_file = Path(__file__).parent / "assets" / "style.css"
+    if css_file.exists():
+        with open(css_file, "r") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-/* ── Section Headers ───────────────────────────────────── */
-.soc-header {
-    font-size: 0.8rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: #8b949e;
-    margin: 24px 0 12px 0;
-    padding-bottom: 6px;
-    border-bottom: 1px solid #1f2937;
-}
-
-/* ── Metric Cards ──────────────────────────────────────── */
-.soc-card {
-    background-color: #111827;
-    border: 1px solid #1f2937;
-    border-radius: 4px;
-    padding: 16px;
-    text-align: left;
-    margin-bottom: 12px;
-}
-.soc-card-title {
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: #9ca3af;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-}
-.soc-card-value {
-    font-size: 1.8rem;
-    font-weight: 600;
-    color: #f3f4f6;
-    line-height: 1;
-}
-.soc-card.accent-red    { border-left: 3px solid #ef4444; }
-.soc-card.accent-orange { border-left: 3px solid #f97316; }
-.soc-card.accent-green  { border-left: 3px solid #10b981; }
-.soc-card.accent-blue   { border-left: 3px solid #3b82f6; }
-.soc-card.accent-gray   { border-left: 3px solid #4b5563; }
-.soc-card.accent-purple { border-left: 3px solid #8b5cf6; }
-
-/* ── Badges ────────────────────────────────────────────── */
-.soc-badge {
-    display: inline-block;
-    padding: 2px 6px;
-    border-radius: 2px;
-    font-size: 0.65rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    border: 1px solid transparent;
-}
-.soc-badge.critical { background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: rgba(239, 68, 68, 0.2); }
-.soc-badge.high     { background: rgba(249, 115, 22, 0.1); color: #f97316; border-color: rgba(249, 115, 22, 0.2); }
-.soc-badge.medium   { background: rgba(234, 179, 8, 0.1); color: #eab308; border-color: rgba(234, 179, 8, 0.2); }
-.soc-badge.low      { background: rgba(16, 185, 129, 0.1); color: #10b981; border-color: rgba(16, 185, 129, 0.2); }
-.soc-badge.info     { background: rgba(59, 130, 246, 0.1); color: #3b82f6; border-color: rgba(59, 130, 246, 0.2); }
-.soc-badge.demo     { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; border-color: rgba(139, 92, 246, 0.2); }
-
-/* ── Risk Score Gauge ──────────────────────────────────── */
-.risk-gauge-container {
-    background: #111827;
-    border: 1px solid #1f2937;
-    border-radius: 4px;
-    padding: 16px;
-    margin-bottom: 16px;
-}
-.risk-gauge-label {
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: #9ca3af;
-    text-transform: uppercase;
-    margin-bottom: 4px;
-}
-.risk-gauge-value {
-    font-size: 2.5rem;
-    font-weight: 700;
-    line-height: 1;
-}
-.risk-bar-bg {
-    width: 100%;
-    background-color: #374151;
-    height: 4px;
-    border-radius: 2px;
-    margin-top: 12px;
-    overflow: hidden;
-}
-.risk-bar-fill {
-    height: 100%;
-    transition: width 0.3s ease;
-}
-
-/* ── Investigation Details ─────────────────────────────── */
-.inv-panel {
-    background: #111827;
-    border: 1px solid #1f2937;
-    border-radius: 4px;
-    padding: 16px;
-    margin-bottom: 16px;
-    font-size: 0.85rem;
-}
-.inv-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid #1f2937;
-}
-.inv-row:last-child {
-    border-bottom: none;
-}
-.inv-key {
-    color: #9ca3af;
-    font-weight: 500;
-}
-.inv-val {
-    color: #e5e7eb;
-    font-weight: 600;
-    text-align: right;
-    max-width: 60%;
-    word-wrap: break-word;
-}
-</style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-def render_metric_card(title: str, value: str, accent: str = "gray") -> str:
-    """accent: red, orange, green, blue, gray, purple"""
+def render_metric_card(title: str, value: str, accent: str = "info") -> str:
+    """accent: critical, high, success, warning, info, purple"""
     return f"""
-    <div class="soc-card accent-{accent}">
-        <div class="soc-card-title">{title}</div>
-        <div class="soc-card-value">{value}</div>
+    <div class="cg-metric-card {accent}">
+        <div class="cg-metric-title">{title}</div>
+        <div class="cg-metric-value">{value}</div>
     </div>
     """
 
 def render_badge(text: str, severity: str = "info") -> str:
-    """severity: critical, high, medium, low, info, demo"""
-    return f'<span class="soc-badge {severity.lower()}">{text}</span>'
+    """severity: critical, high, medium, low, info, demo, success, warning, purple"""
+    return f'<span class="cg-badge cg-badge-{severity.lower()}">{text}</span>'
 
 def render_risk_gauge(score: int) -> str:
     if score >= 75:
-        color = "#ef4444"
+        color = "var(--sev-critical)"
     elif score >= 50:
-        color = "#f97316"
+        color = "var(--sev-high)"
     elif score >= 25:
-        color = "#eab308"
+        color = "var(--sev-medium)"
     else:
-        color = "#10b981"
+        color = "var(--sev-low)"
         
     return f"""
-    <div class="risk-gauge-container">
-        <div class="risk-gauge-label">Assessed Risk Score</div>
-        <div class="risk-gauge-value" style="color: {color};">{score}</div>
-        <div class="risk-bar-bg">
-            <div class="risk-bar-fill" style="width: {score}%; background-color: {color};"></div>
+    <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+        <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px;">Assessed Risk Score</div>
+        <div style="font-size: 2.5rem; font-weight: 700; line-height: 1; color: {color};">{score}</div>
+        <div style="width: 100%; background-color: var(--border); height: 4px; border-radius: 2px; margin-top: 12px; overflow: hidden;">
+            <div style="height: 100%; width: {score}%; background-color: {color};"></div>
         </div>
     </div>
     """
 
 def render_investigation_row(key: str, val: str) -> str:
-    return f'<div class="inv-row"><div class="inv-key">{key}</div><div class="inv-val">{val}</div></div>'
+    return f"""
+    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+        <div style="color: var(--text-muted); font-size: 12px; font-weight: 500;">{key}</div>
+        <div style="color: var(--text-primary); font-size: 13px; font-weight: 600; text-align: right; max-width: 65%; word-wrap: break-word;">{val}</div>
+    </div>
+    """

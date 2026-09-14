@@ -24,16 +24,20 @@ from utils import inject_css
 
 inject_css()
 
+st.sidebar.markdown("## ☁️ CloudSecure")
+st.sidebar.markdown("---")
+
 # Configure Navigation Pages
 pages = {
     "Cloud Analytics": [
         st.Page("pages/1_Overview.py", title="Overview"),
-        st.Page("pages/2_Incidents.py", title="Anomaly Triage"),
-        st.Page("pages/5_Analytics.py", title="Data Analytics"),
+        st.Page("pages/2_Event_Investigation.py", title="Event Investigation"),
+        st.Page("pages/3_Analytics.py", title="Analytics"),
     ],
     "ML & Infrastructure": [
-        st.Page("pages/3_ML_Intelligence.py", title="ML Intelligence"),
-        st.Page("pages/4_System_Health.py", title="System Health"),
+        st.Page("pages/4_ML_Intelligence.py", title="ML Intelligence"),
+        st.Page("pages/5_Cloud_Infrastructure.py", title="Cloud Infrastructure"),
+        st.Page("pages/6_Architecture.py", title="Architecture"),
     ]
 }
 
