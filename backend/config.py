@@ -57,13 +57,13 @@ PROTECTED_PRINCIPALS: frozenset[str] = frozenset(
 # DynamoDB
 # ---------------------------------------------------------------------------
 DYNAMODB_TABLE: str = os.environ.get("DYNAMODB_TABLE", "ThreatEvents")
-DYNAMODB_REGION: str = os.environ.get("DYNAMODB_REGION", "eu-north-1")
+DYNAMODB_REGION: str = os.environ.get("DYNAMODB_REGION", "ap-south-1")
 
 # ---------------------------------------------------------------------------
 # SNS
 # ---------------------------------------------------------------------------
 SNS_TOPIC_ARN: str = os.environ.get("SNS_TOPIC_ARN", "")
-SNS_REGION: str = os.environ.get("SNS_REGION", "eu-north-1")
+SNS_REGION: str = os.environ.get("SNS_REGION", "ap-south-1")
 
 # ---------------------------------------------------------------------------
 # IAM Access Analyzer

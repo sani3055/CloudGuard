@@ -300,6 +300,27 @@ def run_controlled_response(
         "principal_type":  iam_result.get("principal_type", ""),
     }
 
+# ---------------------------------------------------------------------------
+# Phase 4: Execute Approved Remediation (Live Enforcement)
+# ---------------------------------------------------------------------------
+def execute_approved_remediation(event_id: str) -> tuple[bool, str | None]:
+    """
+    Execute remediation for a human-approved event.
+    Calls backend.remediation.execute_approved_remediation.
+    Returns (success_bool, error_string).
+    """
+    ok, err = _ensure_imports()
+    if not ok:
+        return False, f"Import error: {err}"
+    try:
+        from remediation import execute_approved_remediation as backend_execute
+        # This will actually execute IAM PutUserPolicy if ENFORCE_MODE=True
+        success = backend_execute(event_id)
+        return success, None
+    except Exception as exc:
+        return False, str(exc)
+
+
 
 # ---------------------------------------------------------------------------
 # Convenience: run full 8-stage pipeline in one call

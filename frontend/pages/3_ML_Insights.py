@@ -417,6 +417,9 @@ with st.expander("Stage 5 — Threat Classification", expanded=is_anom):
             f'<div class="cg-callout cg-callout-info"><strong>Rationale:</strong> {thr.get("rationale","")}</div>',
             unsafe_allow_html=True,
         )
+        
+        from utils import render_risk_gauge
+        st.markdown(render_risk_gauge(int(thr.get("risk_score", 0))), unsafe_allow_html=True)
 
 # Stage 6 — IAM Policy
 iam_s = stages.get("iam", {})

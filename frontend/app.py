@@ -39,6 +39,19 @@ st.sidebar.markdown(
 
 st.sidebar.markdown("---")
 st.sidebar.markdown(
+    '<div class="cg-section-header" style="margin-top:0">Deployment Status</div>',
+    unsafe_allow_html=True,
+)
+try:
+    import boto3
+    dynamodb = boto3.client('dynamodb', region_name='ap-south-1')
+    dynamodb.describe_table(TableName='CloudGuard-ThreatEvents')
+    st.sidebar.markdown(render_badge("AWS CONNECTED 🟢", "success"), unsafe_allow_html=True)
+except Exception as e:
+    st.sidebar.markdown(render_badge("AWS DISCONNECTED 🔴", "critical"), unsafe_allow_html=True)
+
+st.sidebar.markdown("---")
+st.sidebar.markdown(
     '<div class="cg-section-header" style="margin-top:0">AWS Services</div>',
     unsafe_allow_html=True,
 )

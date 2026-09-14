@@ -135,6 +135,9 @@ else:
       st.write("**Enforcement Eligible:**","Yes" if sel_row.get("enforcement_eligible") else "No")
       st.write("**Target AN:**",     sel_row.get("policy_target_arn", "N/A"))
       st.write("**Policy Name:**",     sel_row.get("policy_name", "N/A"))
+      
+      from utils import render_risk_gauge
+      st.markdown(render_risk_gauge(int(sel_row.get("riskScore", 0))), unsafe_allow_html=True)
     # Rationale
     if sel_row.get("threat_rationale"):
       with st.expander("📝 Threat Rationale"):

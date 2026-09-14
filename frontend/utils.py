@@ -34,8 +34,8 @@ import streamlit as st
 
 @st.cache_resource
 def get_table():
-    dynamodb = boto3.resource("dynamodb", region_name="eu-north-1")
-    return dynamodb.Table("ThreatEvents")
+    dynamodb = boto3.resource("dynamodb", region_name="ap-south-1")
+    return dynamodb.Table("CloudGuard-ThreatEvents")
 
 
 # ---------------------------------------------------------------------------
@@ -183,6 +183,7 @@ def load_xai_data() -> pd.DataFrame:
 def update_remediation_status(event_id: str, new_status: str) -> bool:
     """
     Update the remediation_status attribute for a given eventId.
+    If new_status is APPROVED, it also executes the remediation via pipeline_runner.
     Clears the local caches so the next page load reflects the change.
     Returns True on success, False on any error.
     """
@@ -193,6 +194,12 @@ def update_remediation_status(event_id: str, new_status: str) -> bool:
             UpdateExpression="SET remediation_status = :s",
             ExpressionAttributeValues={":s": new_status},
         )
+        
+        # If approved, immediately attempt execution
+        if new_status == "APPROVED":
+            import pipeline_runner
+            pipeline_runner.execute_approved_remediation(event_id)
+
         load_remediation_queue.clear()
         load_data.clear()
         return True
@@ -461,3 +468,34 @@ def render_pipeline_stepper(completed: int = 0) -> str:
         )
 
     return f'<div class="cg-stepper">{steps_html}</div>'
+
+def render_risk_gauge(score: int) -> str:
+    """
+    Return a Plotly HTML string or an HTML/CSS risk gauge.
+    For simplicity and layout control, we return an HTML string.
+    """
+    if score >= 75:
+        color = "#e05252"  # Critical
+    elif score >= 50:
+        color = "#d4a847"  # High
+    elif score >= 25:
+        color = "#4f86c6"  # Medium
+    else:
+        color = "#4caf7d"  # Low
+
+    return f"""
+    <div style="
+        background: #141720;
+        border: 1px solid #242740;
+        border-radius: 8px;
+        padding: 16px;
+        text-align: center;
+        margin-bottom: 12px;
+    ">
+        <div style="font-size:0.7rem; font-weight:700; color:#6b7694; text-transform:uppercase; margin-bottom:8px;">Risk Score</div>
+        <div style="font-size:2rem; font-weight:700; color:{color};">{score} <span style="font-size:1rem; color:#6b7694;">/ 100</span></div>
+        <div style="width: 100%; background-color: #1e2230; height: 6px; border-radius: 3px; margin-top: 8px; overflow: hidden;">
+            <div style="width: {score}%; background-color: {color}; height: 100%;"></div>
+        </div>
+    </div>
+    """

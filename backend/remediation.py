@@ -219,6 +219,54 @@ def _enforce_policy(policy_result: dict, event_id: str) -> bool:
         logger.error("IAM enforcement failed: %s", e)
         return False
 
+def execute_approved_remediation(event_id: str) -> bool:
+    """
+    Execute remediation for an event that has been manually approved.
+    Reads the item from DynamoDB, checks if it is APPROVED, and enforces the policy.
+    """
+    try:
+        table = _get_table()
+        result = table.get_item(Key={"eventId": event_id})
+        item = result.get("Item")
+        if not item:
+            logger.error("execute_approved_remediation: no item found for eventId=%s", event_id)
+            return False
+
+        if item.get("remediation_status") != "APPROVED":
+            logger.warning("execute_approved_remediation: eventId=%s is not APPROVED (status=%s)", event_id, item.get("remediation_status"))
+            return False
+
+        # Reconstruct policy_result dict expected by _enforce_policy
+        policy_result = {
+            "enforcement_eligible": item.get("enforcement_eligible", False),
+            "skip_reason": item.get("policy_skip_reason", ""),
+            "target_arn": item.get("policy_target_arn", ""),
+            "policy_name": item.get("policy_name", ""),
+            "policy_json": item.get("policy_json", ""),
+            "principal_type": item.get("policy_principal_type", "")
+        }
+
+        # Enforce
+        enforced = _enforce_policy(policy_result, event_id)
+        
+        # Update DynamoDB status
+        new_status = "ENFORCED" if enforced else "ENFORCEMENT_READY"
+        if SIMULATION_MODE:
+            new_status = "SIMULATED_ENFORCEMENT"
+            
+        table.update_item(
+            Key={"eventId": event_id},
+            UpdateExpression="SET remediation_status = :s",
+            ExpressionAttributeValues={":s": new_status},
+        )
+        logger.info("execute_approved_remediation: %s updated to %s", event_id, new_status)
+        return enforced
+
+    except ClientError as e:
+        logger.error("execute_approved_remediation failed: %s", e)
+        return False
+
+
 
 def rollback(event_id_prefix: str) -> bool:
     """
