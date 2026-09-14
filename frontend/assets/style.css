@@ -31,9 +31,24 @@
 }
 
 /* ---- Base typography ---- */
-html, body, [class*="css"] {
+html, body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
+
+/* ---- Streamlit Artifact Removal ---- */
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0');
+
+/* Fix the sidebar collapse icon rendering by explicitly re-applying its font */
+span[data-testid="stIconMaterial"] {
+    font-family: 'Material Symbols Rounded' !important;
+}
+
+/* Remove header anchor links */
+a.header-anchor, a.anchor-link, [data-testid="stHeaderActionElements"] {
+    display: none !important;
+}
+
+
 
 /* ---- KPI / Metric Cards ---- */
 .cg-metric-card {

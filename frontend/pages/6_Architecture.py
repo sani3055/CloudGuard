@@ -17,40 +17,42 @@ and provide actionable explainability via SHAP (SHapley Additive exPlanations).
 
 """)
 
-# Render a beautiful mermaid diagram
 st.markdown("""
-```mermaid
-graph TD
-    %% Styling
-    classDef aws fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#232F3E,font-weight:bold
-    classDef compute fill:#D13212,stroke:#232F3E,stroke-width:2px,color:white,font-weight:bold
-    classDef data fill:#3B48CC,stroke:#232F3E,stroke-width:2px,color:white,font-weight:bold
-    classDef ui fill:#00A1C9,stroke:#232F3E,stroke-width:2px,color:white,font-weight:bold
-    classDef ml fill:#8C4DFE,stroke:#232F3E,stroke-width:2px,color:white,font-weight:bold
-
-    %% Nodes
-    A[AWS CloudTrail\nEvent Telemetry]:::aws
-    B[Amazon EventBridge\nEvent Bus]:::aws
-    C[AWS Lambda\nDocker Container]:::compute
-    D[Feature Engineering\n& Encoding]:::ml
-    E[Isolation Forest\nAnomaly Detection]:::ml
-    F[SHAP Explainer\nFeature Attribution]:::ml
-    G[Amazon DynamoDB\nNoSQL Datastore]:::data
-    H[CloudSecure\nStreamlit UI]:::ui
-    I[Cloud Operational\nResponse]:::compute
-
-    %% Edges
-    A -->|Real-time API Logs| B
-    B -->|Event Rules| C
-    C --> D
-    D --> E
-    E --> F
-    F --> G
-    G --> H
-    H -->|Human-in-the-Loop Review| I
-    I -->|IAM Policy Updates| A
-```
-""")
+<div class="cg-pipeline" style="margin-bottom: 24px; padding: 24px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border);">
+    <div class="cg-pipeline-stage active">
+        <div class="cg-pipeline-dot done">1</div>
+        <div class="cg-pipeline-label active"><b>AWS CloudTrail</b><br/>Event Telemetry</div>
+    </div>
+    <div class="cg-pipeline-stage active">
+        <div class="cg-pipeline-dot done">2</div>
+        <div class="cg-pipeline-label active"><b>EventBridge</b><br/>Event Bus</div>
+    </div>
+    <div class="cg-pipeline-stage active">
+        <div class="cg-pipeline-dot done">3</div>
+        <div class="cg-pipeline-label active" style="color:var(--sev-high);"><b>AWS Lambda</b><br/>Serverless Compute</div>
+    </div>
+    <div class="cg-pipeline-stage active">
+        <div class="cg-pipeline-dot done" style="background:var(--status-sim); border-color:var(--status-sim);">4</div>
+        <div class="cg-pipeline-label active" style="color:var(--status-sim);"><b>Isolation Forest</b><br/>ML Anomaly Detection</div>
+    </div>
+    <div class="cg-pipeline-stage active">
+        <div class="cg-pipeline-dot done" style="background:var(--status-sim); border-color:var(--status-sim);">5</div>
+        <div class="cg-pipeline-label active" style="color:var(--status-sim);"><b>SHAP Explainer</b><br/>Feature Attribution</div>
+    </div>
+    <div class="cg-pipeline-stage active">
+        <div class="cg-pipeline-dot done" style="background:var(--accent); border-color:var(--accent);">6</div>
+        <div class="cg-pipeline-label active"><b>DynamoDB</b><br/>NoSQL Datastore</div>
+    </div>
+    <div class="cg-pipeline-stage active">
+        <div class="cg-pipeline-dot done" style="background:var(--accent); border-color:var(--accent);">7</div>
+        <div class="cg-pipeline-label active"><b>CloudSecure</b><br/>Streamlit UI</div>
+    </div>
+    <div class="cg-pipeline-stage">
+        <div class="cg-pipeline-dot current">8</div>
+        <div class="cg-pipeline-label active" style="color:var(--sev-high);"><b>Human/Ops</b><br/>Remediation Response</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 st.markdown("""
 ---

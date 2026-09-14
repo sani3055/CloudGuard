@@ -130,7 +130,8 @@ st.markdown("""
     width: 150px;
 }
 .diag-badge {
-    width: 120px;
+    width: 145px;
+    white-space: nowrap;
 }
 .diag-latency {
     font-size: 0.8rem;
