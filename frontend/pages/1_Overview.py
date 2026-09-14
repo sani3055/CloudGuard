@@ -30,7 +30,7 @@ c1, c2, c3, c4 = st.columns(4)
 c1.write(f"**AWS DynamoDB:** {aws_status}")
 c2.write(f"**AWS Lambda:** {lambda_status}")
 c3.write(f"**Pipeline:** {'🟢 HEALTHY' if aws_status.startswith('🟢') else '🔴 FAILING'}")
-if not df.empty:
+if not df.empty and pd.notnull(df['timestamp'].max()):
     c4.write(f"**Last Refresh:** {df['timestamp'].max().strftime('%H:%M:%S UTC')}")
 else:
     c4.write("**Last Refresh:** N/A")
