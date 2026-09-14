@@ -14,7 +14,7 @@ if str(_FRONTEND_DIR) not in sys.path:
 
 # Ensure page config is the very first Streamlit command
 st.set_page_config(
-    page_title="CloudGuard SOC",
+    page_title="CloudSecure SOC",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -29,6 +29,7 @@ pages = {
     "Security Operations": [
         st.Page("pages/1_Overview.py", title="Overview"),
         st.Page("pages/2_Incidents.py", title="Incidents"),
+        st.Page("pages/5_Analytics.py", title="Analytics"),
     ],
     "Intelligence & Health": [
         st.Page("pages/3_ML_Intelligence.py", title="ML Intelligence"),

@@ -1,31 +1,98 @@
 """
 utils.py
 ========
-Shared utilities for the CloudGuard Streamlit dashboard.
+Shared utilities for the CloudSecure Streamlit dashboard.
 """
 import boto3
 import pandas as pd
 import streamlit as st
+import random
+from datetime import datetime, timedelta
 
 @st.cache_resource
 def get_table():
     dynamodb = boto3.resource("dynamodb", region_name="ap-south-1")
     return dynamodb.Table("CloudGuard-ThreatEvents")
 
+def generate_demo_data() -> pd.DataFrame:
+    """Generate realistic SOC simulation data to populate the dashboard when live data is sparse."""
+    now = datetime.now(datetime.UTC)
+    demo_events = []
+    
+    scenarios = [
+        {"eventName": "PutUserPolicy", "mitre": "T1098 (Account Manipulation)", "rationale": "Anomalous inline IAM policy attached at unusual hour.", "sev": "Critical", "cat": "PRIVILEGE_ESCALATION", "score": 92, "is_anom": True},
+        {"eventName": "DeleteTrail", "mitre": "T1562.008 (Disable CloudTrail)", "rationale": "CloudTrail logging disabled by non-admin role.", "sev": "Critical", "cat": "DEFENSE_EVASION", "score": 98, "is_anom": True},
+        {"eventName": "AssumeRole", "mitre": "T1078 (Valid Accounts)", "rationale": "Role assumption from unusual geographic location (RU).", "sev": "High", "cat": "CREDENTIAL_ANOMALY", "score": 75, "is_anom": True},
+        {"eventName": "ConsoleLogin", "mitre": "T1078 (Valid Accounts)", "rationale": "Login without MFA from new IP.", "sev": "Medium", "cat": "CREDENTIAL_ANOMALY", "score": 45, "is_anom": False},
+        {"eventName": "DescribeInstances", "mitre": "N/A", "rationale": "Routine automated discovery.", "sev": "Low", "cat": "Unknown", "score": 12, "is_anom": False},
+        {"eventName": "ListBuckets", "mitre": "N/A", "rationale": "Standard developer access.", "sev": "Low", "cat": "Unknown", "score": 8, "is_anom": False},
+        {"eventName": "CreateAccessKey", "mitre": "T1098 (Account Manipulation)", "rationale": "Root user created access key.", "sev": "High", "cat": "CREDENTIAL_ANOMALY", "score": 85, "is_anom": True},
+        {"eventName": "AuthorizeSecurityGroupIngress", "mitre": "T1562.007 (Disable Security Tools)", "rationale": "0.0.0.0/0 opened to port 22.", "sev": "High", "cat": "DEFENSE_EVASION", "score": 88, "is_anom": True},
+        {"eventName": "PutBucketPublicAccessBlock", "mitre": "T1562 (Impair Defenses)", "rationale": "S3 block public access disabled.", "sev": "Critical", "cat": "DEFENSE_EVASION", "score": 95, "is_anom": True},
+        {"eventName": "GetCallerIdentity", "mitre": "T1087 (Account Discovery)", "rationale": "Reconnaissance activity pattern detected.", "sev": "Medium", "cat": "CREDENTIAL_ANOMALY", "score": 55, "is_anom": True},
+    ]
+    
+    regions = ["us-east-1", "eu-west-1", "ap-south-1", "ap-southeast-2", "eu-central-1"]
+    users = ["IAMUser (dev-john)", "AssumedRole (jenkins-ci)", "Root", "IAMUser (audit-service)"]
+    ips = ["192.168.1.5", "203.0.113.42", "198.51.100.7", "52.95.245.1"]
+    
+    # Generate 50 historical demo events over the last 7 days
+    for i in range(50):
+        scenario = random.choice(scenarios)
+        offset = timedelta(hours=random.randint(0, 168), minutes=random.randint(0, 60))
+        event_time = now - offset
+        
+        status = "NOT_REQUIRED"
+        if scenario['is_anom']:
+            status = random.choice(["PENDING_APPROVAL", "APPROVED", "SIMULATED", "BLOCKED"])
+            
+        demo_events.append({
+            "eventId": f"DEMO-{uuid.uuid4().hex[:8]}",
+            "timestamp": event_time.isoformat() + "Z",
+            "eventName": scenario["eventName"],
+            "awsRegion": random.choice(regions),
+            "userIdentitytype": random.choice(users),
+            "sourceIP": random.choice(ips),
+            "riskScore": scenario["score"] + random.randint(-5, 5),
+            "severity": scenario["sev"],
+            "isAnomaly": scenario["is_anom"],
+            "threat_category": scenario["cat"],
+            "threat_rationale": scenario["rationale"],
+            "mitre_technique": scenario["mitre"].split(" ")[0],
+            "mitre_name": " ".join(scenario["mitre"].split(" ")[1:]).strip("()"),
+            "confidence_level": "High" if scenario['score'] > 80 else "Medium",
+            "remediation_status": status,
+            "policy_json": '{"Version": "2012-10-17", "Statement": [{"Effect": "Deny", "Action": "*", "Resource": "*"}]}' if scenario['is_anom'] else "",
+            "policy_target_arn": f"arn:aws:iam::123456789012:user/demo-{random.randint(1,99)}",
+            "validation_status": "CLEAN" if scenario['is_anom'] else "N/A",
+            "is_demo": True
+        })
+        
+    return pd.DataFrame(demo_events)
+
+import uuid
 @st.cache_data(ttl=10)
-def load_data() -> pd.DataFrame:
-    """Load all ThreatEvents for the main dashboard and history pages."""
+def load_data(include_demo: bool = True) -> pd.DataFrame:
+    """Load ThreatEvents. Generates SIMULATION data to ensure the UI is populated."""
     try:
         table = get_table()
         response = table.scan()
         items = response.get("Items", [])
     except Exception:
-        return pd.DataFrame()
+        items = []
 
-    if not items:
-        return pd.DataFrame()
+    df_live = pd.DataFrame(items)
+    if not df_live.empty:
+        df_live['is_demo'] = False
+    
+    df_demo = pd.DataFrame()
+    if include_demo:
+        df_demo = generate_demo_data()
+        
+    df = pd.concat([df_live, df_demo], ignore_index=True) if not df_live.empty else df_demo
 
-    df = pd.DataFrame(items)
+    if df.empty:
+        return df
     
     # Text Defaults
     str_defaults = {
@@ -59,7 +126,7 @@ def load_data() -> pd.DataFrame:
         df["timestamp"] = pd.to_datetime(df["timestamp"], format="ISO8601", errors="coerce")
 
     # Normalize booleans
-    for col in ("enforcement_eligible", "isAnomaly", "isRoot"):
+    for col in ("enforcement_eligible", "isAnomaly", "isRoot", "is_demo"):
         if col in df.columns:
             df[col] = df[col].astype(str).str.lower().isin(["true", "1"])
         else:
@@ -69,6 +136,10 @@ def load_data() -> pd.DataFrame:
 
 def update_remediation_status(event_id: str, new_status: str) -> bool:
     """Update status, execute remediation if APPROVED, and flush cache."""
+    if event_id.startswith("DEMO-"):
+        # Simulated UI update for demo events
+        return True
+        
     try:
         table = get_table()
         table.update_item(
@@ -139,6 +210,7 @@ html, body, [class*="st-"] {
 .soc-card.accent-green  { border-left: 3px solid #10b981; }
 .soc-card.accent-blue   { border-left: 3px solid #3b82f6; }
 .soc-card.accent-gray   { border-left: 3px solid #4b5563; }
+.soc-card.accent-purple { border-left: 3px solid #8b5cf6; }
 
 /* ── Badges ────────────────────────────────────────────── */
 .soc-badge {
@@ -156,6 +228,7 @@ html, body, [class*="st-"] {
 .soc-badge.medium   { background: rgba(234, 179, 8, 0.1); color: #eab308; border-color: rgba(234, 179, 8, 0.2); }
 .soc-badge.low      { background: rgba(16, 185, 129, 0.1); color: #10b981; border-color: rgba(16, 185, 129, 0.2); }
 .soc-badge.info     { background: rgba(59, 130, 246, 0.1); color: #3b82f6; border-color: rgba(59, 130, 246, 0.2); }
+.soc-badge.demo     { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; border-color: rgba(139, 92, 246, 0.2); }
 
 /* ── Risk Score Gauge ──────────────────────────────────── */
 .risk-gauge-container {
@@ -225,7 +298,7 @@ html, body, [class*="st-"] {
     )
 
 def render_metric_card(title: str, value: str, accent: str = "gray") -> str:
-    """accent: red, orange, green, blue, gray"""
+    """accent: red, orange, green, blue, gray, purple"""
     return f"""
     <div class="soc-card accent-{accent}">
         <div class="soc-card-title">{title}</div>
@@ -234,7 +307,7 @@ def render_metric_card(title: str, value: str, accent: str = "gray") -> str:
     """
 
 def render_badge(text: str, severity: str = "info") -> str:
-    """severity: critical, high, medium, low, info"""
+    """severity: critical, high, medium, low, info, demo"""
     return f'<span class="soc-badge {severity.lower()}">{text}</span>'
 
 def render_risk_gauge(score: int) -> str:

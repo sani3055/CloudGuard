@@ -12,33 +12,67 @@ if df.empty:
     st.info("No security incidents to display.")
     st.stop()
 
-# Filter for anomalies or high risk
-incidents_df = df[(df['isAnomaly'] == True) | (df['riskScore'] >= 50)].copy()
+# ── Filters ──
+with st.expander("🔍 Filter Incidents", expanded=False):
+    f1, f2, f3, f4 = st.columns(4)
+    with f1:
+        sev_filter = st.multiselect("Severity", options=df['severity'].unique())
+    with f2:
+        anom_filter = st.selectbox("Type", options=["All", "Anomaly Only", "Normal Only"])
+    with f3:
+        status_filter = st.multiselect("Remediation Status", options=df['remediation_status'].unique())
+    with f4:
+        data_filter = st.selectbox("Data Source", options=["All", "Live AWS", "Demo/Simulation"])
 
-if incidents_df.empty:
-    st.success("No anomalous or high-risk incidents detected.")
+# Apply filters
+filtered_df = df.copy()
+if sev_filter:
+    filtered_df = filtered_df[filtered_df['severity'].isin(sev_filter)]
+if anom_filter == "Anomaly Only":
+    filtered_df = filtered_df[filtered_df['isAnomaly'] == True]
+elif anom_filter == "Normal Only":
+    filtered_df = filtered_df[filtered_df['isAnomaly'] == False]
+if status_filter:
+    filtered_df = filtered_df[filtered_df['remediation_status'].isin(status_filter)]
+if data_filter == "Live AWS":
+    filtered_df = filtered_df[filtered_df['is_demo'] == False]
+elif data_filter == "Demo/Simulation":
+    filtered_df = filtered_df[filtered_df['is_demo'] == True]
+
+if filtered_df.empty:
+    st.success("No incidents match the current filters.")
     st.stop()
 
 # ── Analyst Table ──
-st.markdown("**Select an Event ID to investigate:**")
-event_ids = incidents_df['eventId'].tolist()
-selected_event = st.selectbox("Event ID", event_ids, label_visibility="collapsed")
+st.markdown("**Select an Event to Investigate:**")
 
-# Display the queue as a clean table (read-only)
-view_df = incidents_df[['timestamp', 'eventId', 'eventName', 'userIdentitytype', 'awsRegion', 'severity', 'riskScore', 'remediation_status']]
+# Using a selectbox for reliable selection across all Streamlit versions
+event_options = []
+for _, row in filtered_df.iterrows():
+    prefix = "[DEMO] " if row['is_demo'] else "[LIVE] "
+    event_options.append(f"{prefix}{row['eventId']} - {row['eventName']} ({row['severity']})")
+
+selected_label = st.selectbox("Event ID", event_options, label_visibility="collapsed")
+selected_event_id = selected_label.split(" ")[1] if "[DEMO]" in selected_label or "[LIVE]" in selected_label else selected_label.split(" ")[0]
+
+# Display table
+view_df = filtered_df[['timestamp', 'eventId', 'is_demo', 'eventName', 'userIdentitytype', 'awsRegion', 'severity', 'riskScore', 'remediation_status']].copy()
+view_df['Data'] = view_df['is_demo'].apply(lambda x: "DEMO" if x else "LIVE")
+view_df = view_df.drop(columns=['is_demo'])
 st.dataframe(view_df, use_container_width=True, hide_index=True)
 
 st.markdown("---")
 st.markdown('<div class="soc-header">Incident Investigation Panel</div>', unsafe_allow_html=True)
 
 # ── Investigation Panel ──
-incident = incidents_df[incidents_df['eventId'] == selected_event].iloc[0]
+incident = filtered_df[filtered_df['eventId'] == selected_event_id].iloc[0]
 
 c1, c2 = st.columns([2, 1])
 
 with c1:
     st.markdown('<div class="inv-panel">', unsafe_allow_html=True)
     st.markdown(render_investigation_row("Event ID", incident['eventId']), unsafe_allow_html=True)
+    st.markdown(render_investigation_row("Data Source", "<span style='color:#8b5cf6'>DEMO/SIMULATION</span>" if incident['is_demo'] else "<span style='color:#10b981'>LIVE AWS</span>"), unsafe_allow_html=True)
     st.markdown(render_investigation_row("Timestamp", str(incident['timestamp'])), unsafe_allow_html=True)
     st.markdown(render_investigation_row("API Action", incident['eventName']), unsafe_allow_html=True)
     st.markdown(render_investigation_row("Principal Type", incident['userIdentitytype']), unsafe_allow_html=True)
@@ -51,7 +85,7 @@ with c1:
     st.markdown(render_investigation_row("Threat Category", incident.get('threat_category', 'Unknown')), unsafe_allow_html=True)
     st.markdown(render_investigation_row("MITRE Tactic/Technique", f"{incident.get('mitre_name', 'N/A')} ({incident.get('mitre_technique', 'N/A')})"), unsafe_allow_html=True)
     st.markdown(render_investigation_row("Confidence Level", incident.get('confidence_level', 'Unknown')), unsafe_allow_html=True)
-    st.markdown(f"<div style='margin-top:12px; font-size:0.85rem; color:#9ca3af;'><b>ML Rationale:</b> {incident.get('threat_rationale', 'No rationale provided.')}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='margin-top:12px; font-size:0.85rem; color:#9ca3af;'><b>ML / SHAP Rationale:</b> {incident.get('threat_rationale', 'No rationale provided.')}</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 with c2:
@@ -83,11 +117,15 @@ if status != "NOT_REQUIRED":
 
 # Action Buttons
 st.markdown("### Analyst Actions")
+
+if incident['is_demo']:
+    st.info("ℹ️ This is a DEMO event. Remediation actions will update the UI but will not execute on live AWS resources.")
+
 if status == "PENDING_APPROVAL":
     bc1, bc2 = st.columns(2)
     with bc1:
         if st.button("✅ APPROVE REMEDIATION", type="primary", use_container_width=True):
-            with st.spinner("Executing IAM enforcement on AWS..."):
+            with st.spinner("Executing IAM enforcement on AWS..." if not incident['is_demo'] else "Simulating IAM enforcement..."):
                 success = update_remediation_status(incident['eventId'], "APPROVED")
                 if success:
                     st.success("Remediation Approved and executed successfully!")
